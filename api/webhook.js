@@ -13,7 +13,7 @@ const menu = {
   keyboard: [
     [{ text: "🔎 Check Bot Link" }, { text: "📋 Ads Checklist" }],
     [{ text: "⏳ In Review Help" }, { text: "🧪 Analyze Ad" }],
-    [{ text: "ℹ️ Help" }]
+    [{ text: "📊 Ads Review Report" }, { text: "ℹ️ Help" }]
   ],
   resize_keyboard: true,
   is_persistent: true
@@ -58,7 +58,7 @@ async function checkPublicPreview(username) {
   }
 }
 
-function analyzeAd(input) {
+function analyzeAd(input, report = false) {
   const payload = input.replace(/^\/(?:review|analyze)(?:@\w+)?\s*/i, "").trim();
   const separator = payload.lastIndexOf("|");
   if (separator < 0) return "🧪 Ad Review Analyzer\n\nសូមផ្ញើ៖\n/review Your ad text | https://t.me/ExampleBot";
@@ -78,6 +78,25 @@ function analyzeAd(input) {
     if (!linked || linked.toLowerCase() !== username.toLowerCase()) notes.push("⚠️ Link ក្នុង Ad Text អាចមិនត្រូវនឹង Destination");
   }
   if (/https?:\/\/(?!t\.me\/|telegram\.me\/)/i.test(adText)) notes.push("⚠️ Ad Text មាន External Link — ពិនិត្យគោលការណ៍ Link");
+  if (report) {
+    const warnings = notes.filter(line => line.startsWith("⚠️") || line.startsWith("❌"));
+    const passes = notes.filter(line => line.startsWith("✅"));
+    const status = warnings.length ? "⚠️ NEEDS REVIEW" : "✅ PASS (automated format checks only)";
+    return "📊 TELEGRAM ADS REVIEW REPORT\n\n" +
+      "Result: " + status + "\n" +
+      "Checks passed: " + passes.length + "\n" +
+      "Warnings: " + warnings.length + "\n\n" +
+      notes.join("\n") +
+      "\n\n🔍 MANUAL REVIEW REQUIRED\n" +
+      "☐ Bot /start responds\n" +
+      "☐ Profile, description, and landing page are complete\n" +
+      "☐ Ad claims and destination are consistent\n" +
+      "☐ Content and targeting follow Telegram Ads policies\n\n" +
+      "⚪ Official review status: UNKNOWN\n" +
+      "⚪ Cause of In Review: UNKNOWN\n\n" +
+      "ℹ️ PASS applies only to checks performed by this bot; it does not mean Telegram Ads approval.\n" +
+      "https://ads.telegram.org/guidelines";
+  }
   return "🧪 Telegram Ads Pre-review Analysis\n\n" + notes.join("\n") +
     "\n\n📋 ត្រូវពិនិត្យដោយខ្លួនឯង៖\n☐ Bot /start ឆ្លើយតប\n☐ Profile និង Description ពេញលេញ\n☐ Ad Text និង Destination ស្របគ្នា\n☐ ខ្លឹមសារគោរព Telegram Ads policies\n\n⚪ Review status: មិនអាចអានបាន\n⚪ មូលហេតុ In Review ពិតប្រាកដ: មិនអាចបញ្ជាក់បាន\n\n📖 https://ads.telegram.org/guidelines";
 }
@@ -92,6 +111,12 @@ async function responseFor(text) {
   }
   if (input === "📋 Ads Checklist") {
     return "📋 មុនដាក់ Telegram Ads៖\n\n☐ Bot ឆ្លើយ /start\n☐ Profile និង description ច្បាស់លាស់\n☐ Link / Mini App បើកបាន\n☐ Ad text ត្រូវនឹង destination\n☐ ពិនិត្យ Telegram Ads policies\n\n⚠️ Checklist មិនធានាថា Ads នឹង Approved ទេ។";
+  }
+  if (input === "📊 Ads Review Report") {
+    return "📊 Ads Review Report\n\nសូមផ្ញើ៖\n/report Your ad text | https://t.me/ExampleBot\n\nរបាយការណ៍នេះពិនិត្យទម្រង់បឋម មិនមែន Approval ផ្លូវការទេ។";
+  }
+  if (/^\/report(?:@\w+)?(?:\s|$)/i.test(input)) {
+    return analyzeAd(input.replace(/^\/report/i, "/review"), true);
   }
   if (input === "🧪 Analyze Ad" || /^\/(review|analyze)(?:@\w+)?(?:\s|$)/i.test(input)) {
     return analyzeAd(input);
