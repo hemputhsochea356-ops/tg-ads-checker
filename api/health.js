@@ -1,0 +1,1 @@
+export default function handler(req,res) {return res.status(200).json({service:"tg-ads-checker",status:"ready",telegramConfigured:Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_WEBHOOK_SECRET)});}
