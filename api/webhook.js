@@ -28,10 +28,22 @@ async function checkPublicPreview(username) {
     });
     if (!response.ok) return "⚠️ Public link: HTTP " + response.status + " (មិនអាចបញ្ជាក់បាន)";
     const html = (await response.text()).slice(0, 180000);
-    const title = html.match(/<div class="tgme_page_title"[^>]*>([\\s\\S]*?)<\\/div>/i)?.[1]
-      ?.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim();
-    const description = html.match(/<div class="tgme_page_description"[^>]*>([\\s\\S]*?)<\\/div>/i)?.[1]
-      ?.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim();
+    function getPreviewText(className) {
+      const marker = 'class="' + className + '"';
+      const at = html.indexOf(marker);
+      if (at === -1) return "";
+      const open = html.indexOf(">", at);
+      const close = html.indexOf("</div>", open + 1);
+      if (open === -1 || close === -1) return "";
+      return html.slice(open + 1, close)
+        .replace(/<[^>]*>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .trim();
+    }
+    const title = getPreviewText("tgme_page_title");
+    const description = getPreviewText("tgme_page_description");
     const hasPhoto = /class="tgme_page_photo"/i.test(html);
     const hasProfile = Boolean(title);
     return [
@@ -39,7 +51,7 @@ async function checkPublicPreview(username) {
       title ? "📝 Public title: " + title.slice(0, 90) : "⚠️ Public title: មិនឃើញ",
       description ? "✅ Public description: មាន" : "⚠️ Public description: មិនឃើញ",
       hasPhoto ? "✅ Public photo element: មាន" : "⚠️ Public photo: មិនឃើញ"
-    ].join("\\n");
+    ].join("\n");
   } catch {
     return "⚠️ Public preview: មិនអាចទាញយកបាន (សាកល្បងម្ដងទៀត)";
   }
