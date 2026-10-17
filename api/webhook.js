@@ -59,33 +59,27 @@ async function checkPublicPreview(username) {
 }
 
 function analyzeAd(input) {
-  const payload = input.replace(/^\\/(?:review|analyze)(?:@\\w+)?\\s*/i, "").trim();
+  const payload = input.replace(/^\/(?:review|analyze)(?:@\w+)?\s*/i, "").trim();
   const separator = payload.lastIndexOf("|");
-  if (separator < 0) return "🧪 Ad Review Analyzer\\n\\nសូមផ្ញើតាមទម្រង់៖\\n/review Your ad text | https://t.me/ExampleBot\\n\\nនេះជាការវិភាគបឋម មិនមែនស្ថានភាព Review ផ្លូវការទេ។";
+  if (separator < 0) return "🧪 Ad Review Analyzer\n\nសូមផ្ញើ៖\n/review Your ad text | https://t.me/ExampleBot";
   const adText = payload.slice(0, separator).trim();
   const destination = payload.slice(separator + 1).trim();
-  if (!adText || !destination) return "❗ ត្រូវមាន Ad Text និង Destination Link ទាំងពីរ។\\nឧទាហរណ៍៖ /review Try our bot | https://t.me/ExampleBot";
+  if (!adText || !destination) return "❗ សូមបញ្ចូល Ad Text និង Destination Link។";
   const count = Array.from(adText).length;
-  const issues = [];
   const notes = [];
-  if (count > 160) issues.push("❌ Ad Text លើស 160 តួអក្សរ (" + count + ")");
-  else notes.push("✅ Ad Text length: " + count + "/160");
+  notes.push(count > 160 ? "❌ Ad Text លើស 160 តួអក្សរ (" + count + ")" : "✅ Ad Text length: " + count + "/160");
   const username = extractUsername(destination);
-  if (!username) issues.push("❌ Destination ត្រូវជា Telegram Bot Link ត្រឹមត្រូវ (សម្រាប់ការវិភាគ Bot នេះ)");
-  else notes.push("✅ Destination format: @" + username);
-  if (/[\\r\\n]/.test(adText)) issues.push("⚠️ Ad Text មានការចុះបន្ទាត់ ដែលមិនអនុញ្ញាតតាមគោលការណ៍");
-  const links = adText.match(/(?:https?:\\/\\/)?(?:t\\.me\\/|telegram\\.me\\/)[A-Za-z0-9_]+|@[A-Za-z][A-Za-z0-9_]{4,31}/gi) || [];
-  if (links.length > 1) issues.push("⚠️ Ad Text មាន Link ច្រើនជាងមួយ");
+  notes.push(username ? "✅ Bot destination format: @" + username : "⚠️ Destination មិនមែនជា Telegram Bot Link ត្រឹមត្រូវ (Checker នេះគាំទ្រតែ Bot Links)");
+  if (/[\r\n]/.test(adText)) notes.push("⚠️ Ad Text មានការចុះបន្ទាត់ — ពិនិត្យ Editorial Rules");
+  const links = adText.match(/(?:https?:\/\/)?(?:t\.me\/|telegram\.me\/)[A-Za-z0-9_]+|@[A-Za-z][A-Za-z0-9_]{4,31}/gi) || [];
+  if (links.length > 1) notes.push("⚠️ Ad Text មាន Telegram Links ច្រើនជាងមួយ");
   if (links.length === 1 && username) {
     const linked = extractUsername(links[0]);
-    if (!linked || linked.toLowerCase() !== username.toLowerCase()) issues.push("⚠️ Link ក្នុង Ad Text អាចមិនត្រូវនឹង Destination");
+    if (!linked || linked.toLowerCase() !== username.toLowerCase()) notes.push("⚠️ Link ក្នុង Ad Text អាចមិនត្រូវនឹង Destination");
   }
-  if (/https?:\\/\\/(?!t\\.me\\/|telegram\\.me\\/)/i.test(adText)) issues.push("⚠️ Ad Text មាន External Link — ពិនិត្យគោលការណ៍ Link");
-  const repeatedEmoji = adText.match(/(?:[\\u{1F300}-\\u{1FAFF}]\\s*){4,}/u);
-  if (repeatedEmoji) notes.push("⚠️ មាន Emoji ច្រើនជាប់គ្នា — ពិនិត្យ Editorial Rules");
-  const result = [...notes, ...issues].join("\\n");
-  return "🧪 Telegram Ads Pre-review Analysis\\n\\n" + result +
-    "\\n\\n📋 ត្រូវពិនិត្យដោយខ្លួនឯង៖\\n☐ Bot /start ឆ្លើយលើ Mobile និង Desktop\\n☐ Profile photo និង About/Description ពេញលេញ\\n☐ Destination និង Ad Text ស្របគ្នា\\n☐ មិនមានខ្លឹមសារហាមឃាត់ (ឧ. ល្បែងស៊ីសង ឬការផ្សាយបោកប្រាស់)\\n☐ Targeting និងភាសាសមស្រប\\n\\n⚪ Review status: មិនអាចអានបាន\\n⚪ មូលហេតុ In Review ពិតប្រាកដ: មិនអាចបញ្ជាក់បាន\\n\\n📖 Official guidelines: https://ads.telegram.org/guidelines";
+  if (/https?:\/\/(?!t\.me\/|telegram\.me\/)/i.test(adText)) notes.push("⚠️ Ad Text មាន External Link — ពិនិត្យគោលការណ៍ Link");
+  return "🧪 Telegram Ads Pre-review Analysis\n\n" + notes.join("\n") +
+    "\n\n📋 ត្រូវពិនិត្យដោយខ្លួនឯង៖\n☐ Bot /start ឆ្លើយតប\n☐ Profile និង Description ពេញលេញ\n☐ Ad Text និង Destination ស្របគ្នា\n☐ ខ្លឹមសារគោរព Telegram Ads policies\n\n⚪ Review status: មិនអាចអានបាន\n⚪ មូលហេតុ In Review ពិតប្រាកដ: មិនអាចបញ្ជាក់បាន\n\n📖 https://ads.telegram.org/guidelines";
 }
 
 async function responseFor(text) {
@@ -99,7 +93,10 @@ async function responseFor(text) {
   if (input === "📋 Ads Checklist") {
     return "📋 មុនដាក់ Telegram Ads៖\n\n☐ Bot ឆ្លើយ /start\n☐ Profile និង description ច្បាស់លាស់\n☐ Link / Mini App បើកបាន\n☐ Ad text ត្រូវនឹង destination\n☐ ពិនិត្យ Telegram Ads policies\n\n⚠️ Checklist មិនធានាថា Ads នឹង Approved ទេ។";
   }
-  if (input === "🧪 Analyze Ad" || /^\\/(review|analyze)(?:@\\w+)?(?:\\s|$)/i.test(input)) {\n    return analyzeAd(input);\n  }\n  if (input === "⏳ In Review Help") {
+  if (input === "🧪 Analyze Ad" || /^\/(review|analyze)(?:@\w+)?(?:\s|$)/i.test(input)) {
+    return analyzeAd(input);
+  }
+  if (input === "⏳ In Review Help") {
     return "⏳ Ads នៅ In Review?\n\n• ពិនិត្យ Ad text, link និង destination\n• ពិនិត្យថា Bot និង Mini App ដំណើរការ\n• អាន Telegram Ads policies\n• បើរង់ចាំយូរខុសធម្មតា សូមទាក់ទង Telegram Ads Support តាមផ្លូវការដែលមានក្នុងគណនីអ្នក\n\n⚠️ Bot នេះមិនអាចឆែក Review Status ឬធ្វើឱ្យ Approval លឿនឡើងបានទេ។";
   }
   const candidate = input.replace(/^\/check(?:@\w+)?\s*/i, "").trim();
